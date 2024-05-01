@@ -50,3 +50,28 @@
         version: master
       become: true
       become_user: deploy
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+
+    - name: Install Passenger dependencies
+      ansible.builtin.apt:
+        name: [dirmngr, apt-transport-https, ca-certificates, curl]
+
+    - name: Install PGP key for Passenger
+      ansible.builtin.apt_key:
+        url: https://oss-binaries.phusionpassenger.com/auto-software-signing-gpg-key.txt
+        keyring: /etc/apt/trusted.gpg.d/phusion.gpg
+
+    - name: Add Passenger APT repository
+      ansible.builtin.apt_repository:
+        repo: deb https://oss-binaries.phusionpassenger.com/apt/passenger bookworm main
+
+    - name: Update APT
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Passenger + Nginx module
+      ansible.builtin.apt:
+        name: libnginx-mod-http-passenger
