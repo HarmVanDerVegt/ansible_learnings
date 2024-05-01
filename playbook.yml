@@ -75,3 +75,72 @@
     - name: Install Passenger + Nginx module
       ansible.builtin.apt:
         name: libnginx-mod-http-passenger
+
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    - name: Download rbenv
+      ansible.builtin.git:
+        repo: https://github.com/rbenv/rbenv.git
+        dest: ~/.rbenv
+      become: true
+      become_user: deploy
+
+    - name: Download ruby-build
+      ansible.builtin.git:
+        repo: https://github.com/rbenv/ruby-build.git
+        dest: ~/.rbenv/plugins/ruby-build
+      become: true
+      become_user: deploy
+
+    - name: Download rbenv-vars
+      ansible.builtin.git:
+        repo: https://github.com/rbenv/rbenv-vars.git
+        dest: ~/.rbenv/plugins/rbenv-vars
+      become: true
+      become_user: deploy
+
+    - name: Add rbenv to PATH
+      ansible.builtin.lineinfile:
+        line: export PATH="$HOME/.rbenv/bin:$PATH"
+        path: ~/.bashrc
+        create: true
+      become: true
+      become_user: deploy
+
+    - name: Add rbenv initialization to PATH
+      ansible.builtin.lineinfile:
+        line: eval "$(rbenv init -)"
+        path: ~/.bashrc
+        create: true
+      become: true
+      become_user: deploy
+
+    - name: Add rbenv ruby-build to PATH
+      ansible.builtin.lineinfile:
+        line: export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
+        path: ~/.bashrc
+        create: true
+      become: true
+      become_user: deploy
+
+    - name: Install Ruby
+      ansible.builtin.command:
+        cmd: rbenv install 2.6.8
+      become: true
+      become_user: deploy
+
+    - name: Set default Ruby
+      ansible.builtin.command:
+        cmd: rbenv global 2.6.8
+      become: true
+      become_user: deploy
+
+    - name: Rehash Ruby shims
+      ansible.builtin.command:
+        cmd: rbenv rehash
+      become: true
+      become_user: deploy
+
