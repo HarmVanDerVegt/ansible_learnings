@@ -11,6 +11,7 @@
     - name: Add deploy user
       ansible.builtin.user:
         name: deploy
+        shell: /bin/bash
 
     - name: Create .ssh folder
       ansible.builtin.file:
@@ -80,6 +81,15 @@
       ansible.builtin.service:
         name: nginx
         state: restarted
+      changed_when: False
+
+    - name: Install build essentials
+      ansible.builtin.apt:
+        name: build-essential
+
+    - name: Install libz
+      ansible.builtin.apt:
+        name: libz-dev
 
     - name: Download rbenv
       ansible.builtin.git:
@@ -104,8 +114,8 @@
 
     - name: Add rbenv to PATH
       ansible.builtin.lineinfile:
-        line: export PATH="$HOME/.rbenv/bin:$PATH"
-        path: ~/.bashrc
+        line: PATH="$HOME/.rbenv/bin:$PATH"
+        path: ~/.profile
         create: true
       become: true
       become_user: deploy
@@ -113,7 +123,7 @@
     - name: Add rbenv initialization to PATH
       ansible.builtin.lineinfile:
         line: eval "$(rbenv init -)"
-        path: ~/.bashrc
+        path: ~/.profile
         create: true
       become: true
       become_user: deploy
@@ -121,26 +131,42 @@
     - name: Add rbenv ruby-build to PATH
       ansible.builtin.lineinfile:
         line: export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
-        path: ~/.bashrc
+        path: ~/.profile
         create: true
       become: true
       become_user: deploy
 
     - name: Install Ruby
-      ansible.builtin.command:
-        cmd: rbenv install 2.6.8
+      ansible.builtin.shell:
+        cmd: /home/deploy/.rbenv/bin/rbenv init - && /home/deploy/.rbenv/bin/rbenv install 2.6.8
       become: true
       become_user: deploy
+      args:
+        creates: /home/deploy/.rbenv/version
 
     - name: Set default Ruby
-      ansible.builtin.command:
-        cmd: rbenv global 2.6.8
+      ansible.builtin.shell:
+        cmd: /home/deploy/.rbenv/bin/rbenv init - && /home/deploy/.rbenv/bin/rbenv global 2.6.8
       become: true
       become_user: deploy
+      args:
+        creates: /home/deploy/.rbenv/version
 
     - name: Rehash Ruby shims
-      ansible.builtin.command:
-        cmd: rbenv rehash
+      ansible.builtin.shell:
+        cmd: /home/deploy/.rbenv/bin/rbenv init - && /home/deploy/.rbenv/bin/rbenv rehash
       become: true
       become_user: deploy
+      changed_when: False
 
+    - name: Configure Nginx + Passenger
+      ansible.builtin.template:
+        src: mod-http-passenger.conf.j2
+        dest: /etc/nginx/conf.d/mod-http-passenger.conf
+        mode: 0644
+
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      changed_when: False
