@@ -170,3 +170,20 @@
         name: nginx
         state: restarted
       changed_when: False
+
+    - name: Remove default nginx server file
+      ansible.builtin.file:
+        name: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Create willemvandervegt nginx server file
+      ansible.builtin.template:
+        src: willemvandervegt.j2
+        dest: /etc/nginx/sites-enabled/willemvandervegt
+        mode: 0644
+
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      changed_when: False
