@@ -1,5 +1,7 @@
 - name: Git pull setup
   hosts: myhosts
+  vars:
+    pg_pwd: dYHRdg59cKtnkqxLMV
   tasks:
     - name: Ping my hosts
       ansible.builtin.ping:
@@ -19,20 +21,20 @@
         state: directory
         owner: deploy
 
-    - name: Copy SSH key for GitHub
-      ansible.builtin.copy:
-        src: ~/.ssh/id_ed25519
-        dest: /home/deploy/.ssh/id_ed25519
-        mode: 0600
-        owner: deploy
-
-    - name: Add Github to known hosts
-      ansible.builtin.known_hosts:
-        name: github.com
-        #key: github.com ssh-ed25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
-        key: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-      become: true
-      become_user: deploy
+#    - name: Copy SSH key for GitHub
+#      ansible.builtin.copy:
+#        src: ~/.ssh/id_ed25519
+#        dest: /home/deploy/.ssh/id_ed25519
+#        mode: 0600
+#        owner: deploy
+#
+#    - name: Add Github to known hosts
+#      ansible.builtin.known_hosts:
+#        name: github.com
+#        #key: github.com ssh-ed25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU
+#        key: github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+#      become: true
+#      become_user: deploy
 
     - name: Create repo folder
       ansible.builtin.file:
@@ -40,17 +42,17 @@
         state: directory
         owner: deploy
 
-    - name: Install git
-      ansible.builtin.apt:
-        name: git
-
-    - name: Clone git repo
-      ansible.builtin.git:
-        dest: ~/willemvandervegt
-        repo: git@github.com:HarmVanDerVegt/willemvandervegt.git
-        version: master
-      become: true
-      become_user: deploy
+#    - name: Install git
+#      ansible.builtin.apt:
+#        name: git
+#
+#    - name: Clone git repo
+#      ansible.builtin.git:
+#        dest: ~/willemvandervegt
+#        repo: git@github.com:HarmVanDerVegt/willemvandervegt.git
+#        version: master
+#      become: true
+#      become_user: deploy
 
     - name: Install nginx
       ansible.builtin.apt:
@@ -77,11 +79,11 @@
       ansible.builtin.apt:
         name: libnginx-mod-http-passenger
 
-    - name: Restart Nginx
-      ansible.builtin.service:
-        name: nginx
-        state: restarted
-      changed_when: False
+#    - name: Restart Nginx
+#      ansible.builtin.service:
+#        name: nginx
+#        state: restarted
+#      changed_when: False
 
     - name: Install build essentials
       ansible.builtin.apt:
@@ -112,29 +114,29 @@
       become: true
       become_user: deploy
 
-    - name: Add rbenv to PATH
-      ansible.builtin.lineinfile:
-        line: PATH="$HOME/.rbenv/bin:$PATH"
-        path: ~/.profile
-        create: true
-      become: true
-      become_user: deploy
-
-    - name: Add rbenv initialization to PATH
-      ansible.builtin.lineinfile:
-        line: eval "$(rbenv init -)"
-        path: ~/.profile
-        create: true
-      become: true
-      become_user: deploy
-
-    - name: Add rbenv ruby-build to PATH
-      ansible.builtin.lineinfile:
-        line: export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
-        path: ~/.profile
-        create: true
-      become: true
-      become_user: deploy
+#    - name: Add rbenv to PATH
+#      ansible.builtin.lineinfile:
+#        line: PATH="$HOME/.rbenv/bin:$PATH"
+#        path: ~/.profile
+#        create: true
+#      become: true
+#      become_user: deploy
+#
+#    - name: Add rbenv initialization to PATH
+#      ansible.builtin.lineinfile:
+#        line: eval "$(rbenv init -)"
+#        path: ~/.profile
+#        create: true
+#      become: true
+#      become_user: deploy
+#
+#    - name: Add rbenv ruby-build to PATH
+#      ansible.builtin.lineinfile:
+#        line: export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"
+#        path: ~/.profile
+#        create: true
+#      become: true
+#      become_user: deploy
 
     - name: Install Ruby
       ansible.builtin.shell:
@@ -187,3 +189,75 @@
         name: nginx
         state: restarted
       changed_when: False
+
+    - name: Install PostgreSQL
+      ansible.builtin.apt:
+        name: [postgresql, postgresql-contrib, libpq-dev]
+#
+#    - name: Install pip
+#      ansible.builtin.apt:
+#        name: python3-pip
+#
+#    - name: Create virtual environment
+#      ansible.builtin.command:
+#        cmd: python3 -m venv /home/deploy/.venv/
+#        creates: /home/deploy/.venv/
+
+#    - name: Install pipx
+#      ansible.builtin.apt:
+#        name: pipx
+#
+#    - name: Install virtualvenv
+#      community.general.pipx:
+#        name: virtualvenv
+
+    - name: Install psycopg2-binary
+      ansible.builtin.apt:
+        name: python3-psycopg2
+#        extra_args: --global --break-system-packages
+
+    - name: Create PG user
+      community.postgresql.postgresql_user:
+        name: deploy
+        password: "{{ pg_pwd }}"
+      become: true
+      become_user: postgres
+
+    - name: Create PG database
+      community.postgresql.postgresql_db:
+        name: willemvandervegt_production
+        owner: deploy
+      become: true
+      become_user: postgres
+
+    - name: Add PG password to rbenv variables
+      ansible.builtin.lineinfile:
+        line: "WILLEMVANDERVEGT_DATABASE_PASSWORD={{ pg_pwd }}"
+        dest: /home/deploy/willemvandervegt/.rbenv-vars
+        create: true
+
+    - name: Add Rails Secret Key Base to rbenv variables
+# use `rails secret` to generate at a later date.
+      ansible.builtin.lineinfile:
+        line: "SECRET_KEY_BASE=5935de6146572b30289357e9dc5f6a9ab7aa508868a49d80432b5491d99b3d5760b50f5684a92a4f0f0fbe30e03d1043f07466234f0020d87ab4cea8d6c57d7e"
+        dest: /home/deploy/willemvandervegt/.rbenv-vars
+        create: true
+
+    - name: Add Rails Master Key to rbenv variables
+      ansible.builtin.lineinfile:
+        line: "RAILS_MASTER_KEY=7336382d7f774822c30df563f82254af"
+        dest: /home/deploy/willemvandervegt/.rbenv-vars
+        create: true
+
+#    - name: Production deploy config
+#      ansible.builtin.template:
+#        src: production_config.rb.j2
+#        dest: /home/deploy/willemvandervegt/config/deploy/production_config.rb
+#        mode: 0644
+#        owner: deploy
+
+    - name: Allow RSA as key pair
+      ansible.builtin.template.lineinfile:
+        line: PubkeyAcceptedKeyTypes=+ssh-rsa
+        path: /etc/ssh/sshd_config
+
